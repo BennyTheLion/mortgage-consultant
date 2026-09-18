@@ -1,0 +1,10 @@
+# Secrets / environment-specific config (holds DB credentials + VAPID push keys)
+/config.php
+
+# Runtime uploaded/generated media and scratch files
+/temp/*
+!/temp/.gitkeep
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db

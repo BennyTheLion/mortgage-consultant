@@ -1,0 +1,3 @@
+# CLI-only scripts (run via `php bin/...` or spawned by includes/push.php) — never meant to
+# be fetched over HTTP. This only blocks Apache; CLI/proc_open invocation is unaffected.
+Require all denied

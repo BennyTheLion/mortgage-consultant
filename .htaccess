@@ -1,0 +1,14 @@
+# Block direct HTTP access to files that should only ever be read by PHP includes/CLI,
+# never fetched directly — defense in depth in case PHP execution is ever misconfigured.
+<FilesMatch "^(config(\.example)?\.php|composer\.(json|lock)|database\.sql|migrate_.*\.sql)$">
+  Require all denied
+</FilesMatch>
+
+Options -Indexes
+
+# Pretty tenant URLs: /site/{slug}/ -> site.php?slug={slug}
+# (site.php also works directly as site.php?slug=... if mod_rewrite is ever unavailable)
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^site/([a-z0-9-]+)/?$ site.php?slug=$1 [L,QSA]

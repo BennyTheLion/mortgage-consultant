@@ -68,6 +68,7 @@ function loadSettings() {
     document.getElementById('s-smtp-from-email').value = currentSettings.smtp_from_email || '';
     document.getElementById('s-smtp-from-name').value = currentSettings.smtp_from_name || '';
     renderHoursEditor(currentSettings.working_hours || {});
+    fillSiteContent(currentSettings.site_content);
   });
 }
 
@@ -128,6 +129,89 @@ function saveSettings() {
   };
   api('api/settings.php', { method: 'POST', body: JSON.stringify(payload) }).then(function (res) {
     if (res.ok) toast('נשמר בהצלחה'); else toast(res.data.error || 'שגיאה');
+  });
+}
+
+/* ── Site content (per-tenant marketing text on the public site) ─────── */
+var CONTENT_LISTS = {
+  stats:         { limit: 3,  fields: [['num', 'מספר', 20], ['label', 'תיאור', 60]] },
+  service_cards: { limit: 8,  fields: [['title', 'שם השירות', 80], ['desc', 'תיאור', 300, 'area'], ['image', 'קישור לתמונה (https://…, אפשר להשאיר ריק)', 500]] },
+  credentials:   { limit: 6,  fields: [['_', 'טקסט התגית', 80]], scalar: true },
+  process:       { limit: 6,  fields: [['title', 'כותרת השלב', 80], ['desc', 'תיאור', 300, 'area']] },
+  testimonials:  { limit: 10, fields: [['quote', 'ההמלצה', 500, 'area'], ['name', 'שם הלקוח', 60], ['meta', 'עיר / פרט נוסף (אופציונלי)', 60]] },
+  faq:           { limit: 15, fields: [['q', 'שאלה', 200], ['a', 'תשובה', 800, 'area']] },
+};
+
+function addContentRow(listName, data) {
+  var cfg = CONTENT_LISTS[listName];
+  var box = document.getElementById('c-' + listName);
+  if (box.children.length >= cfg.limit) { toast('הגעתם למקסימום ' + cfg.limit + ' פריטים'); return; }
+  var row = document.createElement('div');
+  row.className = 'card';
+  row.style.cssText = 'padding:12px; margin:0 0 10px;';
+  cfg.fields.forEach(function (f) {
+    var wrap = document.createElement('div');
+    wrap.className = 'field';
+    var label = document.createElement('label');
+    label.textContent = f[1];
+    var input = document.createElement(f[3] === 'area' ? 'textarea' : 'input');
+    if (f[3] === 'area') input.rows = 3; else input.type = 'text';
+    input.maxLength = f[2];
+    input.dataset.key = f[0];
+    var val = cfg.scalar ? data : (data || {})[f[0]];
+    input.value = val || '';
+    wrap.appendChild(label);
+    wrap.appendChild(input);
+    row.appendChild(wrap);
+  });
+  var del = document.createElement('button');
+  del.className = 'btn btn-sm btn-danger';
+  del.textContent = 'הסרה';
+  del.onclick = function () { row.remove(); };
+  row.appendChild(del);
+  box.appendChild(row);
+}
+
+function fillSiteContent(c) {
+  c = c || {};
+  var txt = { 'c-hero-badge': 'hero_badge', 'c-hero-lead': 'hero_lead', 'c-services-heading': 'services_heading',
+    'c-services-desc': 'services_desc', 'c-about-badge-title': 'about_badge_title', 'c-about-badge-sub': 'about_badge_sub',
+    'c-cta-title': 'cta_title', 'c-cta-text': 'cta_text', 'c-footer-blurb': 'footer_blurb' };
+  Object.keys(txt).forEach(function (id) { document.getElementById(id).value = c[txt[id]] || ''; });
+  document.getElementById('c-show-calculator').checked = c.show_calculator !== false;
+  Object.keys(CONTENT_LISTS).forEach(function (name) {
+    document.getElementById('c-' + name).innerHTML = '';
+    (c[name] || []).forEach(function (item) { addContentRow(name, item); });
+  });
+}
+
+function collectSiteContent() {
+  var c = {
+    hero_badge: document.getElementById('c-hero-badge').value,
+    hero_lead: document.getElementById('c-hero-lead').value,
+    services_heading: document.getElementById('c-services-heading').value,
+    services_desc: document.getElementById('c-services-desc').value,
+    about_badge_title: document.getElementById('c-about-badge-title').value,
+    about_badge_sub: document.getElementById('c-about-badge-sub').value,
+    cta_title: document.getElementById('c-cta-title').value,
+    cta_text: document.getElementById('c-cta-text').value,
+    footer_blurb: document.getElementById('c-footer-blurb').value,
+    show_calculator: document.getElementById('c-show-calculator').checked,
+  };
+  Object.keys(CONTENT_LISTS).forEach(function (name) {
+    var cfg = CONTENT_LISTS[name];
+    c[name] = Array.prototype.map.call(document.getElementById('c-' + name).children, function (row) {
+      var item = {};
+      row.querySelectorAll('[data-key]').forEach(function (inp) { item[inp.dataset.key] = inp.value; });
+      return cfg.scalar ? item._ : item;
+    });
+  });
+  return c;
+}
+
+function saveSiteContent() {
+  api('api/settings.php', { method: 'POST', body: JSON.stringify({ site_content: collectSiteContent() }) }).then(function (res) {
+    if (res.ok) toast('תוכן האתר נשמר'); else toast(res.data.error || 'שגיאה');
   });
 }
 

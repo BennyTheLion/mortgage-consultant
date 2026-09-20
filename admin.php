@@ -103,7 +103,8 @@ if ($loggedIn && !empty($_SESSION['tenant_id'])) {
   <div class="admin-menu-dropdown hidden" id="admin-menu-dropdown">
     <div class="admin-menu-item active" data-tab="settings" onclick="showTab('settings')">פרטי עסק</div>
     <div class="admin-menu-item" data-tab="hours" onclick="showTab('hours')">שעות פעילות</div>
-    <div class="admin-menu-item" data-tab="services" onclick="showTab('services')">שירותים</div>
+    <div class="admin-menu-item" data-tab="content" onclick="showTab('content')">תוכן האתר</div>
+    <div class="admin-menu-item" data-tab="services" onclick="showTab('services')">שירותי הזמנה</div>
     <div class="admin-menu-item" data-tab="gallery" onclick="showTab('gallery')">גלריה</div>
     <div class="admin-menu-item" data-tab="bookings" onclick="showTab('bookings')">פגישות</div>
     <div class="admin-menu-item" data-tab="mail" onclick="showTab('mail')">מייל</div>
@@ -149,6 +150,56 @@ if ($loggedIn && !empty($_SESSION['tenant_id'])) {
     <div class="field"><label>משך כל משבצת זמן (בדקות)</label><input type="number" id="s-interval" min="5" step="5" value="30"></div>
     <div id="hours-editor"></div>
     <button class="btn btn-primary" onclick="saveSettings()">שמירה</button>
+  </div>
+
+  <!-- SITE CONTENT -->
+  <div class="admin-section hidden" data-panel="content">
+    <div style="font-size:12.5px; color:rgba(10,37,64,.55); margin-bottom:14px; line-height:1.6;">
+      כל הטקסטים שמופיעים באתר הציבורי. אזור שנשאר ריק (המלצות, סטטיסטיקות, שאלות נפוצות וכו') לא יוצג באתר ולא יופיע בתפריט.
+    </div>
+
+    <div class="section-title">פתיח (Hero)</div>
+    <div class="field"><label>תגית מעל הכותרת (אפשר להשאיר ריק)</label><input type="text" id="c-hero-badge" maxlength="120"></div>
+    <div class="field"><label>משפט פתיחה</label><textarea id="c-hero-lead" rows="2" maxlength="400"></textarea></div>
+    <div class="section-title">נתונים מספריים (עד 3, לדוגמה: "12+" / "שנות ניסיון")</div>
+    <div id="c-stats"></div>
+    <button class="btn btn-ghost btn-sm" onclick="addContentRow('stats')">+ הוספת נתון</button>
+
+    <div class="section-title">אזור השירותים</div>
+    <div class="field"><label>כותרת</label><input type="text" id="c-services-heading" maxlength="160"></div>
+    <div class="field"><label>תיאור</label><input type="text" id="c-services-desc" maxlength="400"></div>
+    <div id="c-service_cards"></div>
+    <button class="btn btn-ghost btn-sm" onclick="addContentRow('service_cards')">+ הוספת כרטיס שירות</button>
+    <div style="font-size:12px; color:rgba(10,37,64,.5); margin-top:6px;">אלו כרטיסי התצוגה באתר. השירותים שאפשר להזמין נערכים בלשונית "שירותי הזמנה".</div>
+
+    <div class="section-title">אזור "אודות" (הטקסט והתמונה נערכים ב"פרטי עסק")</div>
+    <div class="field"><label>כותרת תגית על התמונה (לדוגמה: "בעל רישיון יועץ משכנתאות")</label><input type="text" id="c-about-badge-title" maxlength="120"></div>
+    <div class="field"><label>שורה משנית בתגית</label><input type="text" id="c-about-badge-sub" maxlength="160"></div>
+    <div class="section-title" style="margin-top:8px;">תגיות הסמכה</div>
+    <div id="c-credentials"></div>
+    <button class="btn btn-ghost btn-sm" onclick="addContentRow('credentials')">+ הוספת תגית</button>
+
+    <div class="section-title">איך זה עובד (שלבי התהליך)</div>
+    <div id="c-process"></div>
+    <button class="btn btn-ghost btn-sm" onclick="addContentRow('process')">+ הוספת שלב</button>
+
+    <div class="section-title">מחשבון משכנתא</div>
+    <div class="field"><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="c-show-calculator" style="width:auto;"> הצגת מחשבון המשכנתא באתר</label></div>
+
+    <div class="section-title">המלצות לקוחות (יש להזין רק המלצות אמיתיות)</div>
+    <div id="c-testimonials"></div>
+    <button class="btn btn-ghost btn-sm" onclick="addContentRow('testimonials')">+ הוספת המלצה</button>
+
+    <div class="section-title">שאלות נפוצות</div>
+    <div id="c-faq"></div>
+    <button class="btn btn-ghost btn-sm" onclick="addContentRow('faq')">+ הוספת שאלה</button>
+
+    <div class="section-title">קריאה לפעולה ותחתית האתר</div>
+    <div class="field"><label>כותרת באנר הפעולה</label><input type="text" id="c-cta-title" maxlength="160"></div>
+    <div class="field"><label>טקסט באנר הפעולה</label><input type="text" id="c-cta-text" maxlength="400"></div>
+    <div class="field"><label>טקסט קצר בתחתית האתר</label><textarea id="c-footer-blurb" rows="2" maxlength="400"></textarea></div>
+
+    <button class="btn btn-primary" style="margin-top:8px;" onclick="saveSiteContent()">שמירה</button>
   </div>
 
   <!-- SERVICES -->

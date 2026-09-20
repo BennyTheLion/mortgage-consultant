@@ -12,3 +12,5 @@ RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^site/([a-z0-9-]+)/?$ site.php?slug=$1 [L,QSA]
+# Agent-readable summary of the tenant: /site/{slug}/llms.txt -> llms.php?slug={slug}
+RewriteRule ^site/([a-z0-9-]+)/llms\.txt$ llms.php?slug=$1 [L,QSA]

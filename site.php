@@ -28,6 +28,31 @@ foreach (['png', 'jpg', 'webp'] as $logoExt) {
         break;
     }
 }
+
+require_once __DIR__ . '/includes/site_content.php';
+$c = get_site_content($pdo, $tenantId);
+$aboutStmt = $pdo->prepare("SELECT setting_value FROM settings WHERE tenant_id = ? AND setting_key = 'about_text'");
+$aboutStmt->execute([$tenantId]);
+$hasAbout = trim((string) $aboutStmt->fetchColumn()) !== '';
+$hasPortrait = is_file(__DIR__ . '/images/' . $tenantId . '/advisor-portrait.jpg');
+$e = function ($s) { return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8'); };
+$cardIcons = [
+    '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
+    '<path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/>',
+    '<path d="M12 5v14"/><path d="M5 12h14"/>',
+    '<path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/>',
+];
+$showAbout = $hasAbout || $hasPortrait || $c['about_badge_title'] !== '' || $c['credentials'];
+$showServices = (bool) $c['service_cards'];
+$showProcess = (bool) $c['process'];
+$showCalc = !empty($c['show_calculator']);
+$showTestimonials = (bool) $c['testimonials'];
+$showFaq = (bool) $c['faq'];
+$profile = public_profile($pdo, $tenantId);
+$baseUrl = site_base_url();
+$canonicalUrl = $baseUrl !== '' ? $baseUrl . 'site/' . rawurlencode($slug) . '/' : '';
+$jsonLd = tenant_jsonld($tenant, $profile, $canonicalUrl);
+$metaDesc = trim($profile['tagline'] ?? '') !== '' ? $profile['tagline'] : $tenant['name'] . ' — קביעת פגישת ייעוץ אונליין';
 ?>
 <!doctype html>
 <html lang="he" dir="rtl">
@@ -39,6 +64,10 @@ foreach (['png', 'jpg', 'webp'] as $logoExt) {
      every relative link/fetch back to the app's real root with <base>. -->
 <base href="<?= htmlspecialchars(rtrim(dirname($_SERVER['SCRIPT_NAME']), '/') . '/') ?>">
 <title><?= htmlspecialchars($tenant['name']) ?> — קביעת פגישה</title>
+<meta name="description" content="<?= $e($metaDesc) ?>">
+<?php if ($canonicalUrl): ?><link rel="canonical" href="<?= $e($canonicalUrl) ?>"><?php endif; ?>
+<link rel="alternate" type="text/plain" href="site/<?= $e(rawurlencode($slug)) ?>/llms.txt" title="llms.txt">
+<script type="application/ld+json"><?= $jsonLd ?></script>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a2540">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -59,11 +88,11 @@ foreach (['png', 'jpg', 'webp'] as $logoExt) {
     <span><?= htmlspecialchars($tenant['name']) ?></span>
   </a>
   <ul class="nav-links" id="nav-links">
-    <li><a href="#services">שירותים</a></li>
-    <li><a href="#about">אודות</a></li>
-    <li><a href="#calculator">מחשבון</a></li>
-    <li><a href="#testimonials">המלצות</a></li>
-    <li><a href="#faq">שאלות נפוצות</a></li>
+    <?php if ($showServices): ?><li><a href="#services">שירותים</a></li><?php endif; ?>
+    <?php if ($showAbout): ?><li><a href="#about">אודות</a></li><?php endif; ?>
+    <?php if ($showCalc): ?><li><a href="#calculator">מחשבון</a></li><?php endif; ?>
+    <?php if ($showTestimonials): ?><li><a href="#testimonials">המלצות</a></li><?php endif; ?>
+    <?php if ($showFaq): ?><li><a href="#faq">שאלות נפוצות</a></li><?php endif; ?>
     <li><a href="#contact">צור קשר</a></li>
   </ul>
   <button class="btn btn-primary nav-cta" onclick="revealBooking()">קביעת פגישה</button>
@@ -83,19 +112,21 @@ foreach (['png', 'jpg', 'webp'] as $logoExt) {
   <div class="wrap" style="padding-bottom:0;">
     <div class="hero-inner">
       <div>
-        <span class="hero-badge">✓ פגישת ייעוץ ראשונה ללא עלות</span>
+        <?php if ($c['hero_badge'] !== ''): ?><span class="hero-badge">✓ <?= $e($c['hero_badge']) ?></span><?php endif; ?>
         <h1 id="hero-title"><span id="owner-name"><?= htmlspecialchars($tenant['name']) ?></span></h1>
         <div class="tagline" id="owner-tagline"></div>
-        <p class="lead">ליווי אישי, שקוף ומקצועי לאורך כל התהליך — מהפגישה הראשונה ועד הסיום.</p>
+        <?php if ($c['hero_lead'] !== ''): ?><p class="lead"><?= $e($c['hero_lead']) ?></p><?php endif; ?>
         <div class="hero-actions">
           <button id="hero-cta" class="btn btn-primary hero-shake" onclick="revealBooking()">קביעת פגישה</button>
-          <a href="#calculator" class="btn btn-ghost" style="border-color:rgba(255,255,255,.4); color:#fff;">חישוב משכנתא</a>
+          <?php if ($showCalc): ?><a href="#calculator" class="btn btn-ghost" style="border-color:rgba(255,255,255,.4); color:#fff;">חישוב משכנתא</a><?php endif; ?>
         </div>
-        <div class="hero-stats">
-          <div><div class="stat-num">12+</div><div class="stat-label">שנות ניסיון</div></div>
-          <div><div class="stat-num">600+</div><div class="stat-label">עסקאות בליווי</div></div>
-          <div><div class="stat-num">0 ₪</div><div class="stat-label">עלות פגישה ראשונה</div></div>
+        <?php if ($c['stats']): ?>
+        <div class="hero-stats" style="grid-template-columns:repeat(<?= count($c['stats']) ?>,1fr);">
+          <?php foreach ($c['stats'] as $st): ?>
+          <div><div class="stat-num"><?= $e($st['num']) ?></div><div class="stat-label"><?= $e($st['label']) ?></div></div>
+          <?php endforeach; ?>
         </div>
+        <?php endif; ?>
       </div>
 
       <div class="hero-card-wrap">
@@ -115,25 +146,25 @@ foreach (['png', 'jpg', 'webp'] as $logoExt) {
             <div style="font-size:13px; color:var(--gray); margin-bottom:18px;">בחרו שירות וזמן פנוי — אישור מיידי</div>
 
             <div style="margin-bottom:18px;">
-              <div class="section-title">סוג הפגישה</div>
-              <select id="service-list"></select>
+              <label for="service-list" class="section-title" style="display:block;">סוג הפגישה</label>
+              <select id="service-list" name="service" aria-required="true"></select>
             </div>
 
             <div class="field">
-              <label>תאריך</label>
-              <input type="date" id="date-input">
+              <label for="date-input">תאריך</label>
+              <input type="date" id="date-input" name="date" aria-required="true">
             </div>
 
             <div style="margin-bottom:18px;">
-              <div class="section-title">שעות פנויות</div>
-              <div id="slot-list" style="display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:8px;"></div>
+              <div class="section-title" id="slot-list-title">שעות פנויות</div>
+              <div id="slot-list" role="group" aria-labelledby="slot-list-title" aria-live="polite" style="display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:8px;"></div>
             </div>
 
-            <div class="field"><label>שם מלא</label><input type="text" id="cust-name" placeholder="השם שלך"></div>
-            <div class="field"><label>טלפון</label><input type="tel" id="cust-phone" placeholder="050-0000000"></div>
-            <div class="field"><label>אימייל (לקבלת אישור, אופציונלי)</label><input type="email" id="cust-email" placeholder="you@example.com"></div>
+            <div class="field"><label for="cust-name">שם מלא</label><input type="text" id="cust-name" name="name" autocomplete="name" aria-required="true" placeholder="השם שלך"></div>
+            <div class="field"><label for="cust-phone">טלפון</label><input type="tel" id="cust-phone" name="phone" autocomplete="tel" aria-required="true" placeholder="050-0000000"></div>
+            <div class="field"><label for="cust-email">אימייל (לקבלת אישור, אופציונלי)</label><input type="email" id="cust-email" name="email" autocomplete="email" placeholder="you@example.com"></div>
 
-            <button id="confirm-btn" class="btn btn-primary" disabled onclick="confirmBooking()">אישור הפגישה</button>
+            <button id="confirm-btn" type="button" class="btn btn-primary" disabled onclick="confirmBooking()">אישור הפגישה</button>
           </div>
         </div>
       </div>
@@ -144,106 +175,78 @@ foreach (['png', 'jpg', 'webp'] as $logoExt) {
 <div class="wrap">
 
   <!-- SERVICES -->
+  <?php if ($showServices): ?>
   <div class="observe section" id="services">
     <div class="section-head">
-      <span class="section-tag">השירותים שלי</span>
-      <h2 class="section-heading">ליווי מקצועי בכל שלב בדרך לבית</h2>
-      <p class="section-desc">מתכנון ראשוני ועד חתימה בבנק — הבדיקה, ההשוואה והמשא ומתן מתבצעים בשבילכם.</p>
+      <span class="section-tag">השירותים</span>
+      <?php if ($c['services_heading'] !== ''): ?><h2 class="section-heading"><?= $e($c['services_heading']) ?></h2><?php endif; ?>
+      <?php if ($c['services_desc'] !== ''): ?><p class="section-desc"><?= $e($c['services_desc']) ?></p><?php endif; ?>
     </div>
     <div class="service-grid">
+      <?php foreach ($c['service_cards'] as $i => $card): ?>
       <div class="service-card">
         <div class="service-image">
-          <img src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=500&q=70" alt="" loading="lazy">
-          <div class="service-icon-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg></div>
+          <?php if ($card['image'] !== ''): ?><img src="<?= $e($card['image']) ?>" alt="" loading="lazy"><?php endif; ?>
+          <div class="service-icon-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><?= $cardIcons[$i % count($cardIcons)] ?></svg></div>
         </div>
         <div class="service-body">
-          <div class="title">משכנתא לדירה ראשונה</div>
-          <div class="meta">בדיקת זכאות, בניית תמהיל ומו״מ מול הבנקים מההתחלה ועד החתימה.</div>
+          <div class="title"><?= $e($card['title']) ?></div>
+          <?php if ($card['desc'] !== ''): ?><div class="meta"><?= $e($card['desc']) ?></div><?php endif; ?>
         </div>
       </div>
-      <div class="service-card">
-        <div class="service-image">
-          <img src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=500&q=70" alt="" loading="lazy">
-          <div class="service-icon-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></div>
-        </div>
-        <div class="service-body">
-          <div class="title">מיחזור משכנתא</div>
-          <div class="meta">בדיקה האם משתלם למחזר כיום, וכמה בדיוק תחסכו לאורך זמן.</div>
-        </div>
-      </div>
-      <div class="service-card">
-        <div class="service-image">
-          <img src="https://images.unsplash.com/photo-1582407947304-fd86f028f716?w=500&q=70" alt="" loading="lazy">
-          <div class="service-icon-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="M5 12h14"/></svg></div>
-        </div>
-        <div class="service-body">
-          <div class="title">ליווי מול הבנק</div>
-          <div class="meta">אני יושב בצד שלכם בכל שיחה ומסמך, כדי שלא תישארו לבד מול הפקיד.</div>
-        </div>
-      </div>
-      <div class="service-card">
-        <div class="service-image">
-          <img src="https://images.unsplash.com/photo-1560520653-9e0e4c89eb11?w=500&q=70" alt="" loading="lazy">
-          <div class="service-icon-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/></svg></div>
-        </div>
-        <div class="service-body">
-          <div class="title">משקיעים ונכס שני</div>
-          <div class="meta">תכנון מימון לרכישת נכס נוסף, כולל השפעת המשכנתא הקיימת.</div>
-        </div>
-      </div>
+      <?php endforeach; ?>
     </div>
   </div>
+  <?php endif; ?>
 
   <!-- ABOUT -->
+  <?php if ($showAbout): ?>
   <div class="observe section" id="about">
     <div class="about-flex">
       <div class="about-image-wrap">
         <img src="images/<?= $tenantId ?>/advisor-portrait.jpg?v=<?= @filemtime(__DIR__ . '/images/' . $tenantId . '/advisor-portrait.jpg') ?>" alt="" onerror="this.closest('.about-image-wrap').style.display='none'">
+        <?php if ($c['about_badge_title'] !== ''): ?>
         <div class="about-badge">
           <div class="about-badge-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg></div>
-          <div><strong>בעל רישיון יועץ משכנתאות</strong><span>ליווי מעל 600 עסקאות</span></div>
+          <div><strong><?= $e($c['about_badge_title']) ?></strong><?php if ($c['about_badge_sub'] !== ''): ?><span><?= $e($c['about_badge_sub']) ?></span><?php endif; ?></div>
         </div>
+        <?php endif; ?>
       </div>
       <div>
-        <span class="section-tag">קצת עליי</span>
+        <span class="section-tag">אודות</span>
         <h2 class="section-heading">מי מלווה אתכם בתהליך</h2>
         <div id="about-text" style="font-size:15px; line-height:1.8; color:var(--gray); margin-bottom:18px;"></div>
+        <?php if ($c['credentials']): ?>
         <div class="about-credentials" style="margin-bottom:24px;">
-          <span class="credential-pill">בעל רישיון יועץ משכנתאות</span>
-          <span class="credential-pill">ללא ניגוד עניינים עם הבנקים</span>
+          <?php foreach ($c['credentials'] as $cred): ?><span class="credential-pill"><?= $e($cred) ?></span><?php endforeach; ?>
         </div>
+        <?php endif; ?>
         <button class="btn btn-primary" style="width:auto;" onclick="revealBooking()">בואו נדבר</button>
       </div>
     </div>
   </div>
+  <?php endif; ?>
 
   <!-- PROCESS -->
+  <?php if ($showProcess): ?>
   <div class="observe section">
     <div class="section-head">
       <span class="section-tag">התהליך</span>
       <h2 class="section-heading">איך זה עובד</h2>
     </div>
     <div class="process-list">
+      <?php foreach ($c['process'] as $i => $step): ?>
       <div class="process-step">
-        <div class="process-num">1</div>
-        <div class="process-body"><div class="title">פגישת ייעוץ ראשונית</div><div class="desc">מכירים, ממפים את המצב הכלכלי ואת המטרה — פרונטלית, בזום או בטלפון.</div></div>
+        <div class="process-num"><?= $i + 1 ?></div>
+        <div class="process-body"><div class="title"><?= $e($step['title']) ?></div><?php if ($step['desc'] !== ''): ?><div class="desc"><?= $e($step['desc']) ?></div><?php endif; ?></div>
       </div>
-      <div class="process-step">
-        <div class="process-num">2</div>
-        <div class="process-body"><div class="title">בדיקת זכאות ותמהיל</div><div class="desc">בונים את תמהיל המשכנתא המתאים לכם ומגישים לבנקים לקבלת הצעות.</div></div>
-      </div>
-      <div class="process-step">
-        <div class="process-num">3</div>
-        <div class="process-body"><div class="title">מו״מ מול הבנקים</div><div class="desc">משווים בין ההצעות ומנהלים מו״מ על הריבית והתנאים בשמכם.</div></div>
-      </div>
-      <div class="process-step">
-        <div class="process-num">4</div>
-        <div class="process-body"><div class="title">חתימה וקבלת המפתח</div><div class="desc">ליווי עד לחתימה הסופית בבנק — והמפתח שלכם ביד.</div></div>
-      </div>
+      <?php endforeach; ?>
     </div>
   </div>
+  <?php endif; ?>
 
   <!-- CALCULATOR -->
+  <?php if ($showCalc): ?>
   <div class="observe section" id="calculator">
     <div class="section-head">
       <span class="section-tag">מחשבון משכנתא</span>
@@ -253,14 +256,14 @@ foreach (['png', 'jpg', 'webp'] as $logoExt) {
     <div class="calc-wrap">
       <div class="calc-form">
         <div class="field">
-          <label>סכום המשכנתא</label>
+          <label for="loanAmount">סכום המשכנתא</label>
           <div class="range-input">
             <input type="range" id="loanAmount" min="200000" max="3000000" step="50000" value="1000000">
             <span class="range-value" id="loanAmountVal">₪1,000,000</span>
           </div>
         </div>
         <div class="field">
-          <label>הון עצמי</label>
+          <label for="equity">הון עצמי</label>
           <div class="range-input">
             <input type="range" id="equity" min="0" max="1500000" step="25000" value="300000">
             <span class="range-value" id="equityVal">₪300,000</span>
@@ -268,7 +271,7 @@ foreach (['png', 'jpg', 'webp'] as $logoExt) {
         </div>
         <div class="calc-row">
           <div class="field">
-            <label>תקופה (שנים)</label>
+            <label for="years">תקופה (שנים)</label>
             <select id="years">
               <option value="10">10</option>
               <option value="15">15</option>
@@ -278,7 +281,7 @@ foreach (['png', 'jpg', 'webp'] as $logoExt) {
             </select>
           </div>
           <div class="field">
-            <label>ריבית שנתית (%)</label>
+            <label for="rate">ריבית שנתית (%)</label>
             <input type="number" id="rate" value="4.5" min="0.1" max="15" step="0.1" inputmode="decimal">
           </div>
         </div>
@@ -297,69 +300,44 @@ foreach (['png', 'jpg', 'webp'] as $logoExt) {
       </div>
     </div>
   </div>
+  <?php endif; ?>
 
   <!-- TESTIMONIALS -->
+  <?php if ($showTestimonials): ?>
   <div class="observe section" id="testimonials">
     <div class="section-head">
       <span class="section-tag">לקוחות מספרים</span>
-      <h2 class="section-heading">מה אומרים עליי</h2>
+      <h2 class="section-heading">מה אומרים עלינו</h2>
     </div>
     <div class="testimonial-scroll">
+      <?php foreach ($c['testimonials'] as $t): ?>
       <div class="testimonial-card">
         <div class="stars">★★★★★</div>
-        <div class="quote">חסך לנו המון כסף וזמן. ליווה אותנו צעד-צעד ותמיד היה זמין לשאלות, גם בערבים.</div>
+        <div class="quote"><?= $e($t['quote']) ?></div>
         <div class="author">
-          <span class="author-avatar" style="overflow:hidden;"><img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&q=70" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
-          <div><div class="author-name">מיכל ואיתי</div><div class="author-meta">ראשון לציון</div></div>
+          <span class="author-avatar" aria-hidden="true"><?= $e(function_exists('mb_substr') ? mb_substr($t['name'], 0, 1) : substr($t['name'], 0, 1)) ?></span>
+          <div><div class="author-name"><?= $e($t['name']) ?></div><?php if ($t['meta'] !== ''): ?><div class="author-meta"><?= $e($t['meta']) ?></div><?php endif; ?></div>
         </div>
       </div>
-      <div class="testimonial-card">
-        <div class="stars">★★★★★</div>
-        <div class="quote">הגענו אחרי שדחו אותנו בבנק, ובזכות התמהיל שבנה לנו קיבלנו אישור עקרוני תוך שבוע.</div>
-        <div class="author">
-          <span class="author-avatar" style="overflow:hidden;"><img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&q=70" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
-          <div><div class="author-name">דנה כהן</div><div class="author-meta">פתח תקווה</div></div>
-        </div>
-      </div>
-      <div class="testimonial-card">
-        <div class="stars">★★★★★</div>
-        <div class="quote">מקצועי, ישר, ולא מוכר לך שום דבר שאתה לא צריך. ממליץ בחום לכל מי שקונה דירה ראשונה.</div>
-        <div class="author">
-          <span class="author-avatar" style="overflow:hidden;"><img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&q=70" alt="" style="width:100%;height:100%;object-fit:cover;"></span>
-          <div><div class="author-name">אבי לוי</div><div class="author-meta">מודיעין</div></div>
-        </div>
-      </div>
+      <?php endforeach; ?>
     </div>
   </div>
+  <?php endif; ?>
 
   <!-- FAQ -->
+  <?php if ($showFaq): ?>
   <div class="observe card section" id="faq" style="padding:20px 20px;">
     <div class="section-title">שאלות נפוצות</div>
+    <?php foreach ($c['faq'] as $item): ?>
     <details class="faq-item">
-      <summary>כמה עולה הייעוץ?
+      <summary><?= $e($item['q']) ?>
         <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
       </summary>
-      <div class="faq-answer">הפגישה הראשונה ללא עלות. מעבר לכך, שכר הטרחה נקבע לפי היקף הליווי ומוסכם מראש, לפני שמתחילים לעבוד יחד.</div>
+      <div class="faq-answer"><?= $e($item['a']) ?></div>
     </details>
-    <details class="faq-item">
-      <summary>אתם עובדים מול כל הבנקים?
-        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-      </summary>
-      <div class="faq-answer">כן — אני בלתי תלוי ולא מקבל עמלה מאף בנק, כך שההמלצה שתקבלו מבוססת אך ורק על מה שהכי משתלם לכם.</div>
-    </details>
-    <details class="faq-item">
-      <summary>כמה זמן לוקח התהליך?
-        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-      </summary>
-      <div class="faq-answer">בממוצע 3-5 שבועות מהפגישה הראשונה ועד לאישור העקרוני, תלוי בבנק ובמסמכים הנדרשים.</div>
-    </details>
-    <details class="faq-item">
-      <summary>אני כבר באמצע תהליך מול בנק — אפשר להצטרף עכשיו?
-        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-      </summary>
-      <div class="faq-answer">בהחלט. אפשר להיכנס בכל שלב — גם רק לבדוק שההצעה שקיבלתם הוגנת, וגם לקחת את המו״מ לידיים.</div>
-    </details>
+    <?php endforeach; ?>
   </div>
+  <?php endif; ?>
 
   <!-- GALLERY (certificates / office photos) -->
   <div id="gallery-section" class="observe hidden section">
@@ -404,10 +382,10 @@ foreach (['png', 'jpg', 'webp'] as $logoExt) {
             הזינו את הטלפון שאיתו קבעתם את הפגישה, כדי לעדכן מועד או לבטל.
           </div>
           <div style="display:flex; gap:8px; align-items:flex-end;">
-            <div class="field" style="margin-bottom:0; flex:1;"><label>טלפון</label><input type="tel" id="manage-phone" placeholder="050-0000000"></div>
-            <button class="btn btn-ghost btn-auto" onclick="lookupMyBookings()">חיפוש</button>
+            <div class="field" style="margin-bottom:0; flex:1;"><label for="manage-phone">טלפון</label><input type="tel" id="manage-phone" name="phone" autocomplete="tel" placeholder="050-0000000"></div>
+            <button type="button" class="btn btn-ghost btn-auto" onclick="lookupMyBookings()">חיפוש</button>
           </div>
-          <div id="manage-list" style="margin-top:16px;"></div>
+          <div id="manage-list" aria-live="polite" style="margin-top:16px;"></div>
         </div>
       </div>
     </div>
@@ -416,8 +394,8 @@ foreach (['png', 'jpg', 'webp'] as $logoExt) {
   <!-- CTA -->
   <div class="observe section">
     <div class="cta-banner">
-      <h2>מוכנים לקבוע פגישה?</h2>
-      <p>בלי הרשמה, בלי המתנה בטלפון — בוחרים שירות וזמן פנוי ומקבלים אישור מיידי.</p>
+      <?php if ($c['cta_title'] !== ''): ?><h2><?= $e($c['cta_title']) ?></h2><?php endif; ?>
+      <?php if ($c['cta_text'] !== ''): ?><p><?= $e($c['cta_text']) ?></p><?php endif; ?>
       <div class="cta-actions">
         <button class="btn btn-primary" onclick="revealBooking()">קביעת פגישה</button>
       </div>
@@ -434,26 +412,26 @@ foreach (['png', 'jpg', 'webp'] as $logoExt) {
         <?php if ($logoUrl): ?><img src="<?= htmlspecialchars($logoUrl) ?>" alt="" class="brand-logo"><?php else: ?><span class="logo-mark" aria-hidden="true"><?= htmlspecialchars($logoLetter) ?></span><?php endif; ?>
         <span><?= htmlspecialchars($tenant['name']) ?></span>
       </div>
-      <p>ליווי אישי ומקצועי בתהליך המשכנתא, משלב הבדיקה הראשונית ועד החתימה בבנק.</p>
+      <?php if ($c['footer_blurb'] !== ''): ?><p><?= $e($c['footer_blurb']) ?></p><?php endif; ?>
     </div>
     <div>
       <h4>ניווט</h4>
       <ul>
-        <li><a href="#services">שירותים</a></li>
-        <li><a href="#about">אודות</a></li>
-        <li><a href="#calculator">מחשבון</a></li>
-        <li><a href="#testimonials">המלצות</a></li>
+        <?php if ($showServices): ?><li><a href="#services">שירותים</a></li><?php endif; ?>
+        <?php if ($showAbout): ?><li><a href="#about">אודות</a></li><?php endif; ?>
+        <?php if ($showCalc): ?><li><a href="#calculator">מחשבון</a></li><?php endif; ?>
+        <?php if ($showTestimonials): ?><li><a href="#testimonials">המלצות</a></li><?php endif; ?>
+        <li><a href="#contact">צור קשר</a></li>
       </ul>
     </div>
+    <?php if ($showServices): ?>
     <div>
       <h4>שירותים</h4>
       <ul>
-        <li><a href="#services">משכנתא לדירה ראשונה</a></li>
-        <li><a href="#services">מיחזור משכנתא</a></li>
-        <li><a href="#services">ליווי מול הבנק</a></li>
-        <li><a href="#services">משקיעים ונכס שני</a></li>
+        <?php foreach ($c['service_cards'] as $card): ?><li><a href="#services"><?= $e($card['title']) ?></a></li><?php endforeach; ?>
       </ul>
     </div>
+    <?php endif; ?>
     <div>
       <h4>יצירת קשר</h4>
       <div class="site-footer" style="padding:0; margin:0;">
@@ -495,11 +473,11 @@ foreach (['png', 'jpg', 'webp'] as $logoExt) {
 <div id="login-modal" class="modal-backdrop hidden" onclick="if(event.target===this) closeLoginModal()">
   <div class="modal-sheet">
     <div style="font-size:17px; font-weight:800; margin-bottom:16px;">כניסת מנהל</div>
-    <div class="field"><label>שם משתמש</label><input type="text" id="login-username"></div>
+    <div class="field"><label for="login-username">שם משתמש</label><input type="text" id="login-username" autocomplete="username"></div>
     <div class="field">
-      <label>סיסמה</label>
+      <label for="login-password">סיסמה</label>
       <div class="password-wrap">
-        <input type="password" id="login-password">
+        <input type="password" id="login-password" autocomplete="current-password">
         <button type="button" class="password-toggle" onclick="togglePasswordVisibility('login-password', this)" aria-label="הצג/הסתר סיסמה">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>

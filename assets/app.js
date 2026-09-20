@@ -63,7 +63,8 @@ function loadSettings() {
     var s = res.data;
     document.getElementById('owner-name').textContent = s.owner_name || '';
     document.getElementById('owner-tagline').textContent = s.tagline || '';
-    if (s.about_text) document.getElementById('about-text').textContent = s.about_text;
+    var aboutEl = document.getElementById('about-text');
+    if (s.about_text && aboutEl) aboutEl.textContent = s.about_text;
     if (s.accent_color) applyAccentColor(s.accent_color);
 
     var addrPhone = [];
@@ -160,6 +161,17 @@ function renderContactItems(s) {
       });
     });
   }
+  // <base href> makes plain "#section" links navigate to the app root; scroll manually instead.
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a) return;
+    var id = a.getAttribute('href').slice(1);
+    if (!id) { e.preventDefault(); return; }
+    var target = document.getElementById(id);
+    if (!target) return;
+    e.preventDefault();
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
   var header = document.getElementById('site-header');
   if (header) {
     window.addEventListener('scroll', function () {
@@ -318,14 +330,19 @@ function loadSlots() {
       return;
     }
     slots.forEach(function (s) {
-      var div = document.createElement('div');
+      var div = document.createElement('button');
+      div.type = 'button';
       div.className = 'slot' + (state.time === s.time ? ' selected' : '');
       div.textContent = s.time;
+      div.setAttribute('aria-pressed', state.time === s.time ? 'true' : 'false');
+      div.setAttribute('aria-label', 'שעה ' + s.time + ' בתאריך ' + state.date);
+      div.dataset.time = s.time;
       div.onclick = function () {
         haptic(8);
         state.time = s.time;
-        Array.prototype.forEach.call(slotList.children, function (el) { el.classList.remove('selected'); });
+        Array.prototype.forEach.call(slotList.children, function (el) { el.classList.remove('selected'); el.setAttribute('aria-pressed', 'false'); });
         div.classList.add('selected');
+        div.setAttribute('aria-pressed', 'true');
         renderConfirmButton();
       };
       slotList.appendChild(div);
@@ -495,9 +512,9 @@ function toggleMyReschedule(b) {
   if (!container.classList.contains('hidden')) { container.classList.add('hidden'); container.innerHTML = ''; return; }
   container.classList.remove('hidden');
   container.innerHTML =
-    '<div class="field"><label>תאריך חדש</label><input type="date" id="my-date-' + b.id + '"></div>' +
+    '<div class="field"><label for="my-date-' + b.id + '">תאריך חדש</label><input type="date" id="my-date-' + b.id + '"></div>' +
     '<div class="section-title">שעות פנויות</div>' +
-    '<div id="my-slots-' + b.id + '" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;"></div>' +
+    '<div id="my-slots-' + b.id + '" role="group" aria-label="שעות פנויות" aria-live="polite" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;"></div>' +
     '<button class="btn btn-primary" style="margin-top:12px;" id="my-save-' + b.id + '" disabled>שמירת מועד חדש</button>';
 
   var dateInput = document.getElementById('my-date-' + b.id);
@@ -524,14 +541,18 @@ function toggleMyReschedule(b) {
       var currentTime = b.booking_time.slice(0, 5);
       slots.forEach(function (s) {
         var isCurrent = dateInput.value === b.booking_date && s.time === currentTime;
-        var div = document.createElement('div');
+        var div = document.createElement('button');
+        div.type = 'button';
         div.className = 'slot' + (isCurrent ? ' selected' : '');
         div.textContent = s.time;
+        div.setAttribute('aria-pressed', isCurrent ? 'true' : 'false');
+        div.setAttribute('aria-label', 'שעה ' + s.time + ' בתאריך ' + dateInput.value);
         div.onclick = function () {
           haptic(8);
           chosenTime = s.time;
-          Array.prototype.forEach.call(slotsEl.children, function (el) { el.classList.remove('selected'); });
+          Array.prototype.forEach.call(slotsEl.children, function (el) { el.classList.remove('selected'); el.setAttribute('aria-pressed', 'false'); });
           div.classList.add('selected');
+          div.setAttribute('aria-pressed', 'true');
           saveBtn.disabled = false;
         };
         slotsEl.appendChild(div);

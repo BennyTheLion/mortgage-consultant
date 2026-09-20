@@ -9,7 +9,9 @@ $ALLOWED_KEYS = [
     'working_hours', 'legal_privacy_text', 'legal_terms_text',
     'admin_notification_email', 'mail_enabled', 'smtp_host', 'smtp_port',
     'smtp_username', 'smtp_password', 'smtp_secure', 'smtp_from_email', 'smtp_from_name',
+    'site_content',
 ];
+require_once __DIR__ . '/../includes/site_content.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $isTenantAdmin = !empty($_SESSION['admin_id']) && !empty($_SESSION['tenant_id']);
@@ -37,6 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $decoded = json_decode($out['working_hours'], true);
         $out['working_hours'] = $decoded ?: new stdClass();
     }
+    $out['site_content'] = get_site_content($pdo, $tenantId);
     json_out($out);
 }
 
@@ -53,6 +56,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $value = $input[$key];
         if ($key === 'working_hours' && is_array($value)) {
             $value = json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
+        if ($key === 'site_content') {
+            $value = json_encode(sanitize_site_content($value), JSON_UNESCAPED_UNICODE);
         }
         $stmt->execute([$tenantId, $key, $value]);
     }

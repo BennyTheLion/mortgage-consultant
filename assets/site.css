@@ -5,7 +5,7 @@
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; padding: 0; }
-html { color-scheme: light; }
+html { color-scheme: light; scroll-padding-top: 76px; }
 :root {
   --primary: #0a2540;
   --primary-2: #1e3a5f;
@@ -69,6 +69,14 @@ a { color: inherit; text-decoration: none; }
   color: var(--primary); font-family: inherit;
 }
 .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
+/* Mobile browsers give native date inputs an intrinsic width that ignores width:100%. */
+.field input[type="date"] {
+  -webkit-appearance: none; appearance: none;
+  display: block; min-width: 0; max-width: 100%; box-sizing: border-box;
+  min-height: 50px; text-align: right;
+}
+.field input[type="date"]::-webkit-date-and-time-value { text-align: right; min-height: 1.2em; }
+#booking-card, #booking-form, .hero-card-wrap { min-width: 0; max-width: 100%; }
 
 #service-list {
   width: 100%; padding: 13px 14px; border-radius: 10px; font-size: 16px; min-height: 48px;
@@ -93,6 +101,8 @@ a { color: inherit; text-decoration: none; }
   border: 2px solid var(--border); font-size: 14px; font-weight: 600; cursor: pointer; min-height: 46px;
   transition: transform .15s ease, border-color .15s ease, background .15s ease, color .15s ease;
 }
+button.slot { width: 100%; font-family: inherit; color: inherit; }
+.slot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .slot:hover:not(.taken) { border-color: var(--accent-light); }
 .slot:active:not(.taken) { transform: scale(0.94); }
 .slot.selected { border-color: var(--accent); background: var(--accent); color: var(--site-ink); }
